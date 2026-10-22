@@ -1,0 +1,305 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LinkedIn Profile Checker</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 16px;
+    background: #f4f7fb; color: #172033;
+    font: 15px/1.6 system-ui, sans-serif;
+  }
+  main {
+    max-width: 720px; margin: auto;
+    background: white; border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 8px 32px #1720330c;
+  }
+  h1 { font-size: 27px; margin: 0 0 4px; }
+  .muted { color: #64748b; font-size: 13px; }
+  .field { margin-top: 19px; }
+  label {
+    display: block; font-weight: 600;
+    margin-bottom: 7px;
+  }
+  input {
+    width: 100%; min-width: 0; padding: 12px;
+    border: 1px solid #d6deea; border-radius: 9px;
+    font: inherit; background: white;
+  }
+  input:focus { outline: 2px solid #93c5fd; }
+  button, .profile-link {
+    display: inline-block; border: 0; border-radius: 9px;
+    padding: 12px 16px; font: inherit;
+    font-weight: 600; cursor: pointer;
+    text-decoration: none;
+  }
+  button { background: #0a66c2; color: white; }
+  button.secondary {
+    background: #eaf2fb; color: #164e85;
+  }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  .notice {
+    background: #f1f6fc; padding: 13px;
+    border-radius: 10px; margin-top: 18px;
+    font-size: 13px; color: #475569;
+  }
+  #message { margin-top: 12px; color: #b42318; }
+  #result {
+    display: none; margin-top: 28px;
+    border-top: 1px solid #e2e8f0; padding-top: 24px;
+  }
+  .person { display: flex; gap: 18px; align-items: center; }
+  .avatar {
+    width: 100px; height: 100px; flex-shrink: 0;
+    border-radius: 50%; object-fit: cover;
+    background: #e2e8f0;
+  }
+  .stat {
+    margin-top: 12px; padding: 14px;
+    border: 1px solid #e2e8f0; border-radius: 10px;
+  }
+  .value { font-size: 20px; font-weight: 700; }
+  a { color: #0a66c2; overflow-wrap: anywhere; }
+  @media (max-width: 480px) {
+    main { padding: 20px; }
+    .person { align-items: flex-start; }
+    .avatar { width: 76px; height: 76px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>LinkedIn Profile Checker</h1>
+  <div class="muted">免费 · 简洁 · 不保存查询记录</div>
+
+  <div class="notice">
+    此版本不会自动抓取 LinkedIn。请填写你有权使用、
+    且已从公开来源核实的信息。输入链接后可打开原始主页。
+  </div>
+
+  <form id="profileForm">
+    <div class="field">
+      <label for="url">LinkedIn 个人主页链接 *</label>
+      <input id="url" type="url" required
+        placeholder="https://www.linkedin.com/in/username/">
+    </div>
+
+    <div class="field">
+      <label for="photo">头像图片 URL（可选）</label>
+      <input id="photo" type="url"
+        placeholder="https://example.com/photo.jpg">
+    </div>
+
+    <div class="field">
+      <label for="nationality">国籍（有可靠依据时填写）</label>
+      <input id="nationality" maxlength="100"
+        placeholder="例如：Singapore">
+    </div>
+
+    <div class="field">
+      <label for="nationalitySource">国籍的公开来源（可选）</label>
+      <input id="nationalitySource" type="url"
+        placeholder="填写可核实的公开来源 URL">
+    </div>
+
+    <div class="field">
+      <label for="graduation">毕业年份</label>
+      <input id="graduation" type="number"
+        min="1900" max="2100" placeholder="例如：2020">
+    </div>
+
+    <div class="field">
+      <label for="start">最早一份工作的开始日期</label>
+      <input id="start" type="date">
+    </div>
+
+    <div class="field">
+      <label for="end">工作经历的结束日期（仍在职可留空）</label>
+      <input id="end" type="date">
+    </div>
+
+    <div class="actions">
+      <button type="submit">生成资料卡</button>
+      <button class="secondary" type="reset">清空</button>
+    </div>
+    <div id="message" role="alert"></div>
+  </form>
+
+  <section id="result" aria-live="polite">
+    <div class="person">
+      <img id="avatar" class="avatar" alt="个人头像"
+        referrerpolicy="no-referrer">
+      <div>
+        <h2 style="margin:0 0 6px">个人资料</h2>
+        <a id="profileLink" target="_blank"
+          rel="noopener noreferrer">打开 LinkedIn 主页 ↗</a>
+        <div class="muted">信息可能不完整，请核对原始来源。</div>
+      </div>
+    </div>
+
+    <div class="stat">
+      <div class="muted">国籍</div>
+      <div id="outNationality" class="value">未确认</div>
+      <div id="outSource" class="muted"></div>
+    </div>
+    <div class="stat">
+      <div class="muted">毕业年份</div>
+      <div id="outGraduation" class="value">暂无数据</div>
+    </div>
+    <div class="stat">
+      <div class="muted">工作年限估算</div>
+      <div id="outExperience" class="value">暂无数据</div>
+      <div class="muted">
+        按输入的最早工作日期计算，不代表已核实的实际工作年限。
+      </div>
+    </div>
+    <div class="actions">
+      <button id="copy" type="button">复制资料摘要</button>
+    </div>
+    <div id="copyMessage" class="muted"></div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let summary = "";
+
+function validLinkedInUrl(value) {
+  try {
+    const u = new URL(value);
+    return (
+      u.protocol === "https:" &&
+      (u.hostname === "linkedin.com" ||
+       u.hostname === "www.linkedin.com") &&
+      /^\/in\/[^/]+\/?$/.test(u.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function calculateExperience(startValue, endValue) {
+  if (!startValue) return null;
+
+  const start = new Date(startValue + "T12:00:00Z");
+  const end = endValue
+    ? new Date(endValue + "T12:00:00Z")
+    : new Date();
+
+  if (Number.isNaN(start.getTime()) ||
+      Number.isNaN(end.getTime()) || end < start) {
+    return null;
+  }
+
+  const days = Math.floor((end - start) / 86400000);
+  const years = days / 365.2425;
+  return { years: years.toFixed(1), days };
+}
+
+$("profileForm").addEventListener("submit", event => {
+  event.preventDefault();
+  $("message").textContent = "";
+  $("copyMessage").textContent = "";
+
+  const url = $("url").value.trim();
+
+  if (!validLinkedInUrl(url)) {
+    $("message").textContent =
+      "请输入有效的 https://www.linkedin.com/in/用户名 链接。";
+    $("result").style.display = "none";
+    return;
+  }
+
+  const gradText = $("graduation").value.trim();
+  const grad = gradText ? Number(gradText) : null;
+  const currentYear = new Date().getFullYear();
+
+  if (grad !== null &&
+      (!Number.isInteger(grad) || grad < 1900 ||
+       grad > currentYear + 10)) {
+    $("message").textContent = "请检查毕业年份是否正确。";
+    return;
+  }
+
+  const photo = $("photo").value.trim();
+  if (photo) {
+    try {
+      const p = new URL(photo);
+      if (p.protocol !== "https:") throw Error();
+    } catch {
+      $("message").textContent = "头像链接必须是有效的 HTTPS URL。";
+      return;
+    }
+  }
+
+  const nationality = $("nationality").value.trim();
+  const source = $("nationalitySource").value.trim();
+
+  if (nationality && !source) {
+    $("message").textContent =
+      "请填写国籍的公开来源，或清空国籍字段。";
+    return;
+  }
+
+  if (source) {
+    try {
+      if (new URL(source).protocol !== "https:") throw Error();
+    } catch {
+      $("message").textContent =
+        "国籍来源必须是有效的 HTTPS URL。";
+      return;
+    }
+  }
+
+  const exp = calculateExperience($("start").value, $("end").value);
+  if (($("start").value || $("end").value) && !exp) {
+    $("message").textContent = "请检查工作经历的开始和结束日期。";
+    return;
+  }
+
+  $("profileLink").href = url;
+  $("avatar").src = photo || "";
+  $("avatar").alt = photo ? "用户提供的头像" : "未提供头像";
+  $("outNationality").textContent = nationality || "未确认";
+  $("outSource").textContent = source ? "公开来源：" + source : "";
+  $("outGraduation").textContent = grad === null
+    ? "暂无数据" : String(grad);
+  $("outExperience").textContent = exp
+    ? exp.years + " 年（估算）" : "暂无数据";
+
+  summary = [
+    "LinkedIn 个人资料",
+    "主页：" + url,
+    "头像：" + (photo || "未提供"),
+    "国籍：" + (nationality || "未确认"),
+    "国籍来源：" + (source || "无"),
+    "毕业年份：" + (grad === null ? "暂无数据" : grad),
+    "工作年限：" + (exp ? exp.years + " 年（估算）" : "暂无数据")
+  ].join("\n");
+
+  $("result").style.display = "block";
+});
+
+$("copy").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(summary);
+    $("copyMessage").textContent = "已复制资料摘要。";
+  } catch {
+    $("copyMessage").textContent =
+      "复制失败，请手动选择并复制资料。";
+  }
+});
+
+$("profileForm").addEventListener("reset", () => {
+  $("result").style.display = "none";
+  $("message").textContent = "";
+  $("copyMessage").textContent = "";
+  summary = "";
+});
+</script>
+</body>
+</html>
